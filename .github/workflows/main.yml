@@ -1,4 +1,6 @@
 name: Release CI
+permissions:
+  contents: write
 on:
   push:
     tags: ['v*']
@@ -107,3 +109,63 @@ jobs:
       with:
         name: arm64EC_${{ steps.current-time.outputs.formattedTime }}_pdb
         path: Bin/ARM64EC/Release (lite)/*.pdb
+
+  release:
+    # 只有推送 v* 标签时才创建 Release，手动触发只构建产物
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [x64_build, x86_build, arm64ec_build]
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download x64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: x64_*_TrafficMonitor
+          path: release/x64
+          merge-multiple: true
+
+      - name: Download x86 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: x86_*_TrafficMonitor
+          path: release/x86
+          merge-multiple: true
+
+      - name: Download ARM64EC artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: arm64EC_*_TrafficMonitor
+          path: release/arm64EC
+          merge-multiple: true
+
+      - name: Package release files
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          foreach ($arch in @("x64", "x86", "arm64EC")) {
+            $packageName = "TrafficMonitor_${tag}_${arch}"
+            $packageDir = "package/$packageName"
+            New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+
+            Copy-Item "release/$arch/*" $packageDir -Recurse -Force
+            Copy-Item "TrafficMonitor/skins" $packageDir -Recurse -Force
+            Copy-Item "TrafficMonitor/language" $packageDir -Recurse -Force
+            Copy-Item "LICENSE", "LICENSE_CN", "README.md", "FAQ.url", "Home.url" $packageDir -Force -ErrorAction SilentlyContinue
+
+            Compress-Archive -Path $packageDir -DestinationPath "package/$packageName.zip" -Force
+          }
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: TrafficMonitor ${{ github.ref_name }}
+          body: |
+            由 Release CI 自动构建的测试版本。
+
+            Commit: ${{ github.sha }}
+          prerelease: true
+          fail_on_unmatched_files: true
+          files: |
+            package/*.zip

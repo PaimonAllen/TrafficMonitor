@@ -18,6 +18,12 @@ CommonDisplayItem::CommonDisplayItem(IPluginItem* item)
 
 bool CommonDisplayItem::operator<(const CommonDisplayItem& item) const
 {
+    //“提交内存”是后添加的项目，将其排在最后，以保证已有配置中插件项目的序号和颜色不变。
+    bool this_is_commit = (!is_plugin && item_type == TDI_MEMORY_COMMIT);
+    bool other_is_commit = (!item.is_plugin && item.item_type == TDI_MEMORY_COMMIT);
+    if (this_is_commit != other_is_commit)
+        return other_is_commit;
+
     if (is_plugin && !item.is_plugin)
         return false;
     else if (!is_plugin && item.is_plugin)
@@ -79,6 +85,7 @@ CString CommonDisplayItem::GetItemName() const
         case TDI_HDD_USAGE: return CCommon::LoadText(IDS_HDD_USAGE);
         case TDI_CPU_FREQ: return CCommon::LoadText(IDS_CPU_FREQ);
         case TDI_TODAY_TRAFFIC: return CCommon::LoadText(IDS_TRAFFIC_USED);
+        case TDI_MEMORY_COMMIT: return CCommon::LoadText(IDS_MEMORY_COMMIT_USAGE);
         default:
             ASSERT(false);
             break;
@@ -129,6 +136,9 @@ std::wstring CommonDisplayItem::DefaultString(bool is_main_window) const
         case TDI_MEMORY:
             default_text = CCommon::LoadText(IDS_MEMORY_DISP, _T(": "));
             break;
+        case TDI_MEMORY_COMMIT:
+            default_text = _T("MEMC: ");
+            break;
         case TDI_GPU_USAGE:
             default_text = CCommon::LoadText(IDS_GPU_DISP, _T(": "));
             break;
@@ -176,6 +186,7 @@ const wchar_t* CommonDisplayItem::GetItemIniKeyName() const
         case TDI_TOTAL_SPEED: return L"total_speed_string";
         case TDI_CPU_FREQ: return L"cpu_freq_string";
         case TDI_TODAY_TRAFFIC: return L"today_traffic_string";
+        case TDI_MEMORY_COMMIT: return L"memory_commit_string";
         }
         ASSERT(FALSE);
         return L"";
@@ -235,6 +246,10 @@ CString CommonDisplayItem::GetItemValueText(bool is_main_window) const
                 str_value = CCommon::DataSizeToString((static_cast<unsigned long long>(theApp.m_total_memory) - static_cast<unsigned long long>(theApp.m_used_memory)) * 1024, cfg_data->separate_value_unit_with_space);
             else
                 str_value = CCommon::UsageToString(theApp.m_memory_usage, *cfg_data);
+            break;
+        //提交内存利用率
+        case TDI_MEMORY_COMMIT:
+            str_value = CCommon::UsageToString(theApp.m_commit_usage, *cfg_data);
             break;
         //显卡利用率
         case TDI_GPU_USAGE:
@@ -303,6 +318,7 @@ CString CommonDisplayItem::GetItemValueSampleText(bool is_main_window) const
             sample_str = _T("50 %");
             break;
         case TDI_MEMORY:
+        case TDI_MEMORY_COMMIT:
             sample_str = _T("51 %");
             break;
         case TDI_CPU_TEMP: case TDI_GPU_TEMP: case TDI_HDD_TEMP: case TDI_MAIN_BOARD_TEMP:
@@ -353,6 +369,7 @@ CString CommonDisplayItem::GetItemValueSampleText(bool is_main_window) const
         //占用率百分比
         case TDI_CPU:
         case TDI_MEMORY:
+        case TDI_MEMORY_COMMIT:
         case TDI_GPU_USAGE:
         case TDI_HDD_USAGE:
         {

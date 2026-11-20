@@ -19,6 +19,8 @@
 #include "TaskbarHelper.h"
 #include "SkinManager.h"
 
+#include <psapi.h>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -181,6 +183,22 @@ CString CTrafficMonitorDlg::GetMouseTipsInfo()
         temp.Format(_T("\r\n%s: %s/%s"), CCommon::LoadText(IDS_MEMORY_USAGE),
             CCommon::KBytesToString(theApp.m_used_memory),
             CCommon::KBytesToString(theApp.m_total_memory));
+        tip_info += temp;
+    }
+    if (theApp.m_commit_usage >= 0)
+    {
+        if (!skin_layout.GetItem(TDI_MEMORY_COMMIT).show)
+        {
+            temp.Format(_T("\r\n%s: %s/%s (%d %%)"), CCommon::LoadText(IDS_MEMORY_COMMIT_USAGE),
+                CCommon::KBytesToString(theApp.m_used_commit_memory),
+                CCommon::KBytesToString(theApp.m_total_commit_memory), theApp.m_commit_usage);
+        }
+        else
+        {
+            temp.Format(_T("\r\n%s: %s/%s"), CCommon::LoadText(IDS_MEMORY_COMMIT_USAGE),
+                CCommon::KBytesToString(theApp.m_used_commit_memory),
+                CCommon::KBytesToString(theApp.m_total_commit_memory));
+        }
         tip_info += temp;
     }
     if (!skin_layout.GetItem(TDI_CPU_FREQ).show && theApp.m_cpu_freq >= 0)
@@ -1461,6 +1479,24 @@ void CTrafficMonitorDlg::DoMonitorAcquisition()
     theApp.m_memory_usage = statex.dwMemoryLoad;
     theApp.m_used_memory = static_cast<int>((statex.ullTotalPhys - statex.ullAvailPhys) / 1024);
     theApp.m_total_memory = static_cast<int>(statex.ullTotalPhys / 1024);
+
+    //获取提交内存使用情况
+    PERFORMANCE_INFORMATION perf_info{};
+    if (GetPerformanceInfo(&perf_info, static_cast<DWORD>(sizeof(perf_info))))
+    {
+        unsigned __int64 commit_used = static_cast<unsigned __int64>(perf_info.CommitTotal) * perf_info.PageSize;
+        unsigned __int64 commit_limit = static_cast<unsigned __int64>(perf_info.CommitLimit) * perf_info.PageSize;
+        theApp.m_used_commit_memory = commit_used / 1024;
+        theApp.m_total_commit_memory = commit_limit / 1024;
+        int usage = commit_limit > 0 ? static_cast<int>(commit_used * 100 / commit_limit) : 0;
+        theApp.m_commit_usage = usage > 100 ? 100 : usage;
+    }
+    else
+    {
+        theApp.m_used_commit_memory = 0;
+        theApp.m_total_commit_memory = 0;
+        theApp.m_commit_usage = -1;
+    }
 
 #ifndef WITHOUT_TEMPERATURE
     //获取温度

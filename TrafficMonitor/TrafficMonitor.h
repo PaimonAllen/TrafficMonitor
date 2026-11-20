@@ -51,6 +51,9 @@ public:
     int m_memory_usage{ -1 };   //内存利用率
     int m_used_memory{};    //可用物理内存（单位为KB）
     int m_total_memory{};   //物理内存总量（单位为KB）
+    int m_commit_usage{ -1 };   //提交内存利用率
+    unsigned __int64 m_used_commit_memory{};    //已提交内存（单位为KB）
+    unsigned __int64 m_total_commit_memory{};   //提交内存上限（单位为KB）
     float m_cpu_temperature{ -1 };  //CPU温度
     float m_cpu_freq{ -1 };  //CPU 频率
     float m_gpu_temperature{ -1 };  //显卡温度
